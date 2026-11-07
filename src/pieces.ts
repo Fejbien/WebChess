@@ -43,6 +43,7 @@ export class PiecesScreenHandling {
         // Other
         this.drawPieces(this.ctxPiecesLayer, this.boardRef);
         this.cDragLayer.onmousemove = this.handleMouseMove.bind(this);
+        this.cDragLayer.onmousedown = this.handleMouseDown.bind(this);
     }
 
     private getScreenPosition(
@@ -115,6 +116,8 @@ export class PiecesScreenHandling {
     }
 
     private handleMouseMove(ev: MouseEvent): void {
+        // move it out of here to its more performent and refresh it on move so add moves to
+        // board class and add callback to refresh
         const pieces: bigint = this.boardRef.getAll(
             this.boardRef.getCurrentColourTrun()
         );
@@ -132,5 +135,14 @@ export class PiecesScreenHandling {
                 break;
             } else this.cDragLayer.style.cursor = 'default';
         }
+    }
+
+    private handleMouseDown(ev: MouseEvent): void {
+        const x: number =
+            ev.clientX - this.cDragLayer.getBoundingClientRect().x;
+        const y: number =
+            ev.clientY - this.cDragLayer.getBoundingClientRect().y;
+
+        console.log(`${x} : ${y}`);
     }
 }
