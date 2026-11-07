@@ -210,11 +210,11 @@ export class PiecesScreenHandling {
         this.handleMouseMove(ev);
     }
 
-    private handleMouseUp(ev: MouseEvent): void {
+    private handleMouseUp(): void {
         this.cleanUpDrag();
     }
 
-    private handleMouseOut(ev: MouseEvent): void {
+    private handleMouseOut(): void {
         this.cleanUpDrag();
     }
 
