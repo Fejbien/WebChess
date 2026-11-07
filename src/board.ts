@@ -1,4 +1,4 @@
-import * as cf from "./conifg";
+import * as cf from './conifg';
 
 function drawBoard(ctx: CanvasRenderingContext2D) {
     const squareSize = cf.SQURESIZE;
@@ -23,8 +23,8 @@ function drawBoard(ctx: CanvasRenderingContext2D) {
 
     // horitontal a b c d e f g h
     ctx.font = cf.BOARDFONT;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     const halfSquareSize = squareSize / 2;
     for (let i = 1; i <= 8; i++) {
         ctx.fillText(
@@ -104,9 +104,9 @@ function drawBoard(ctx: CanvasRenderingContext2D) {
 
 function initBoard() {
     const cBoardLayer = document.getElementById(
-        "board-layer"
+        'board-layer'
     ) as HTMLCanvasElement;
-    const ctxBoardLayer = cBoardLayer.getContext("2d");
+    const ctxBoardLayer = cBoardLayer.getContext('2d');
     cBoardLayer.width = cf.BOARDSIZE;
     cBoardLayer.height = cf.BOARDSIZE;
 

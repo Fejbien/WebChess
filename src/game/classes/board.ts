@@ -1,35 +1,13 @@
-const RANKCOUNT: number = 8;
-type bit = 0 | 1;
+import { RANKCOUNT } from '../../conifg';
+import { isLowerCase, isNumber } from '../../helpers/isHelpers';
+import {
+    BoardEnum,
+    ColourEnum,
+    PieceEnum,
+    type Bit,
+} from '../../types/boardEnums';
 
-const BoardEnum = {
-    nWhite: 0,
-    nBlack: 1,
-    nPawn: 2,
-    nKnight: 3,
-    nBishop: 4,
-    nRook: 5,
-    nQueen: 6,
-    nKing: 7,
-} as const;
-type BoardEnum = (typeof BoardEnum)[keyof typeof BoardEnum];
-
-const PieceEnum = {
-    pawn: 2,
-    knight: 3,
-    bishop: 4,
-    rook: 5,
-    queen: 6,
-    king: 7,
-} as const;
-type PieceEnum = (typeof PieceEnum)[keyof typeof PieceEnum];
-
-const ColourEnum = {
-    white: 0,
-    black: 1,
-} as const;
-type ColourEnum = (typeof ColourEnum)[keyof typeof ColourEnum];
-
-const pieceMapper: Map<string, PieceEnum> = new Map([
+export const pieceMapper: Map<string, PieceEnum> = new Map([
     ['p', PieceEnum.pawn],
     ['n', PieceEnum.knight],
     ['b', PieceEnum.bishop],
@@ -44,12 +22,6 @@ const pieceMapper: Map<string, PieceEnum> = new Map([
     ['Q', PieceEnum.queen],
     ['K', PieceEnum.king],
 ]);
-
-const isNumber = (charCode: number): boolean =>
-    charCode >= 48 && charCode <= 57;
-
-const isLowerCase = (charCode: number): boolean =>
-    charCode >= 97 && charCode <= 122;
 
 export class Board {
     pieceBoardArr: bigint[];
@@ -67,28 +39,31 @@ export class Board {
         const ranks: string = fen.slice(0, endPiecePart);
         const rankSplit: string[] = ranks.split('/');
 
-        for (let i: number = 0; i < RANKCOUNT; i++) {
-            let file: number = 0;
-            for (let j: number = 0; j < rankSplit[i].length; j++) {
-                if (isNumber(rankSplit[i].charCodeAt(file))) {
-                    file += Number(rankSplit[i].charAt(file));
+        for (let i = 0; i < RANKCOUNT; i++) {
+            const rankIndex = 7 - i;
+            let fileIndex = 0;
+
+            for (let j = 0; j < rankSplit[i].length; j++) {
+                const charCode = rankSplit[i].charCodeAt(j);
+                const char = rankSplit[i].charAt(j);
+
+                if (isNumber(charCode)) {
+                    fileIndex += Number(char);
                     continue;
                 }
 
-                const colour: ColourEnum = isLowerCase(
-                    rankSplit[i].charCodeAt(file)
-                )
+                const colour: ColourEnum = isLowerCase(charCode)
                     ? ColourEnum.black
                     : ColourEnum.white;
 
                 this.setPiece(
-                    i,
-                    file,
+                    rankIndex,
+                    fileIndex,
                     colour,
-                    pieceMapper.get(rankSplit[i].charAt(file))
+                    pieceMapper.get(char)
                 );
 
-                file++;
+                fileIndex++;
             }
         }
     }
@@ -98,7 +73,7 @@ export class Board {
         fileIndex: number,
         color: ColourEnum,
         piece: PieceEnum | undefined,
-        bit: bit = 1
+        bit: Bit = 1
     ) {
         const index: number = 8 * rankIndex + fileIndex;
         this.pieceBoardArr[color];
@@ -110,8 +85,8 @@ export class Board {
             this.pieceBoardArr[piece] |= mask;
             this.pieceBoardArr[color] |= mask;
         } else {
-            this.pieceBoardArr[piece] & ~mask;
-            this.pieceBoardArr[color] & ~mask;
+            this.pieceBoardArr[piece] &= ~mask;
+            this.pieceBoardArr[color] &= ~mask;
         }
     }
 
