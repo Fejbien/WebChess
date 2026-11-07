@@ -8,10 +8,11 @@ function setUpDiv() {
     gameDiv.style = `width: ${BOARDSIZE}px; height: ${BOARDSIZE}px;`;
 }
 
-function main() {
+async function main() {
     setUpDiv();
-    initPiecesSvg();
+    await initPiecesSvg();
     initBoard();
+    
     const board = new Board(
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );
