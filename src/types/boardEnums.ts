@@ -1,5 +1,17 @@
 export type Bit = 0 | 1;
 
+// Made to console log nicer
+export const stringNamingBoardEnumMap = new Map<number, string>([
+    [0, 'white'],
+    [1, 'black'],
+    [2, 'pawn'],
+    [3, 'knight'],
+    [4, 'bishop'],
+    [5, 'rook'],
+    [6, 'queen'],
+    [7, 'king'],
+]);
+
 export const BoardEnum = {
     nWhite: 0,
     nBlack: 1,

@@ -6,6 +6,7 @@ import {
     PieceEnum,
     type Bit,
 } from '../../types/boardEnums';
+import type { VectorRankFile } from '../../types/vector2d';
 
 export const pieceMapper: Map<string, PieceEnum> = new Map([
     ['p', PieceEnum.pawn],
@@ -82,9 +83,8 @@ export class Board {
         piece: PieceEnum | undefined,
         bit: Bit = 1
     ) {
-        const index: number = 8 * rankIndex + fileIndex;
         this.pieceBoardArr[colour];
-        const mask = 1n << BigInt(index);
+        const mask = this.getMaskFromRankAndFile(rankIndex, fileIndex);
 
         if (!piece) throw Error('Undefined piece');
 
@@ -97,12 +97,45 @@ export class Board {
         }
     }
 
+    private getMask = (index: number): bigint => 1n << BigInt(index);
+    private getMaskFromRankAndFile = (rank: number, file: number): bigint =>
+        this.getMask(rank * 8 + file);
+
     public getCurrentColourTrun = (): ColourEnum => this.move;
 
     // All colours
     public getAllWhite = (): bigint => this.pieceBoardArr[BoardEnum.nWhite];
     public getAllBlack = (): bigint => this.pieceBoardArr[BoardEnum.nBlack];
     public getAll = (colour: ColourEnum) => this.pieceBoardArr[colour];
+
+    // Single piece
+    public getPieceTypeAndColour = (
+        coords: VectorRankFile
+    ): {
+        colour: ColourEnum;
+        piece: PieceEnum;
+    } | null => {
+        const piece = this.getPieceType(coords);
+        const colour = this.getPieceColour(coords);
+
+        // bcs of colour white being 0 "piece && colour" always evaluated to false lmfao
+        if (piece && colour !== null) return { colour, piece };
+        return null;
+    };
+    public getPieceType = (coords: VectorRankFile): PieceEnum | null => {
+        const mask = this.getMaskFromRankAndFile(coords.rank, coords.file);
+        for (const value of Object.values(PieceEnum)) {
+            if ((this.pieceBoardArr[value] & mask) !== 0n) return value;
+        }
+        return null;
+    };
+    public getPieceColour = (coords: VectorRankFile): ColourEnum | null => {
+        const mask = this.getMaskFromRankAndFile(coords.rank, coords.file);
+        for (const value of Object.values(ColourEnum)) {
+            if ((this.pieceBoardArr[value] & mask) !== 0n) return value;
+        }
+        return null;
+    };
 
     // Pawns
     public getWhitePawns = (): bigint =>

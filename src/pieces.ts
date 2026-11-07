@@ -1,5 +1,11 @@
 import * as cf from './conifg';
 import type { Board } from './game/classes/board';
+import { boardToImageMapper } from './helpers/boardTypeToImage';
+import {
+    getRankAndFile,
+    getScreenPosition,
+} from './helpers/positionNormalizers';
+import { stringNamingBoardEnumMap } from './types/boardEnums';
 import type { Vector2D } from './types/vector2d';
 
 export class PiecesScreenHandling {
@@ -11,7 +17,21 @@ export class PiecesScreenHandling {
     cDragLayer: HTMLCanvasElement;
     ctxDragLayer: CanvasRenderingContext2D | null;
 
+    layerBoundingX: number;
+    layerBoundingY: number;
+
+    piecesTurn: bigint;
+    piecesTurnCoords: Vector2D[];
+
+    isDragging: boolean;
+    currentlyDraggedImage: HTMLImageElement | null;
+    draggedPosition: Vector2D | null;
+
     constructor(board: Board) {
+        this.draggedPosition = null;
+        this.isDragging = false;
+        this.currentlyDraggedImage = null;
+
         this.boardRef = board;
 
         // Pieces layer
@@ -41,24 +61,24 @@ export class PiecesScreenHandling {
             throw new Error('Drag context layer is null');
 
         // Other
+        this.layerBoundingX = this.cDragLayer.getBoundingClientRect().x;
+        this.layerBoundingY = this.cDragLayer.getBoundingClientRect().y;
         this.drawPieces(this.ctxPiecesLayer, this.boardRef);
+        // Should add to change on move to other one or skip enitrlely by like flag ai_move
+        // and like the coordinates as well, so this wont be realucalter everytime
+        this.piecesTurn = this.boardRef.getAll(
+            this.boardRef.getCurrentColourTrun()
+        );
+        this.piecesTurnCoords = this.getPieceCoordinates(this.piecesTurn);
+
         this.cDragLayer.onmousemove = this.handleMouseMove.bind(this);
         this.cDragLayer.onmousedown = this.handleMouseDown.bind(this);
+        this.cDragLayer.onmouseup = this.handleMouseUp.bind(this);
+        this.cDragLayer.onmouseout = this.handleMouseOut.bind(this);
     }
 
-    private getScreenPosition(
-        rankIndex: number,
-        fileIndex: number,
-        isWhitePerspective: boolean = true
-    ): Vector2D {
-        const visualRow = isWhitePerspective ? 9 - rankIndex : rankIndex;
-        const visualCol = isWhitePerspective ? fileIndex : 9 - fileIndex;
-
-        return {
-            x: visualCol * cf.SQURESIZE,
-            y: visualRow * cf.SQURESIZE,
-        };
-    }
+    private normalizeX = (x: number): number => x - this.layerBoundingX;
+    private normalizeY = (y: number): number => y - this.layerBoundingY;
 
     private getPieceCoordinates(bitboard: bigint): Vector2D[] {
         const coords: Vector2D[] = [];
@@ -70,7 +90,7 @@ export class PiecesScreenHandling {
             const fileIndex = squareIndex & 7;
             const rankIndex = squareIndex >> 3;
 
-            coords.push({ x: rankIndex + 1, y: fileIndex + 1 });
+            coords.push({ x: fileIndex + 1, y: rankIndex + 1 });
             board &= board - 1n;
         }
 
@@ -96,8 +116,8 @@ export class PiecesScreenHandling {
 
         for (const [func, image] of map) {
             const coordinates = this.getPieceCoordinates(func());
-            for (const { x: rankIndex, y: fileIndex } of coordinates) {
-                const { x, y } = this.getScreenPosition(rankIndex, fileIndex);
+            for (const { x: fileIndex, y: rankIndex } of coordinates) {
+                const { x, y } = getScreenPosition(rankIndex, fileIndex);
                 ctx.drawImage(image, x, y, cf.SQURESIZE, cf.SQURESIZE);
             }
         }
@@ -107,7 +127,7 @@ export class PiecesScreenHandling {
         const ctx = this.ctxDragLayer;
         if (!ctx) throw new Error('Define path ctx error');
         ctx.beginPath();
-        const { x, y } = this.getScreenPosition(coords.x, coords.y);
+        const { x, y } = getScreenPosition(coords.y, coords.x);
         ctx.moveTo(x, y);
         ctx.lineTo(x + cf.SQURESIZE, y);
         ctx.lineTo(x + cf.SQURESIZE, y + cf.SQURESIZE);
@@ -116,33 +136,93 @@ export class PiecesScreenHandling {
     }
 
     private handleMouseMove(ev: MouseEvent): void {
-        // move it out of here to its more performent and refresh it on move so add moves to
-        // board class and add callback to refresh
-        const pieces: bigint = this.boardRef.getAll(
-            this.boardRef.getCurrentColourTrun()
-        );
+        if (this.isDragging) {
+            const ctx = this.ctxDragLayer;
+            if (!ctx) throw new Error('Drag layer cts null');
+            ctx.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
+            if (!this.currentlyDraggedImage) return;
+            ctx.drawImage(
+                this.currentlyDraggedImage,
+                this.normalizeX(ev.clientX) - cf.SQURESIZE / 2,
+                this.normalizeY(ev.clientY) - cf.SQURESIZE / 2,
+                cf.SQURESIZE,
+                cf.SQURESIZE
+            );
+        } else {
+            const x: number = this.normalizeX(ev.clientX);
+            const y: number = this.normalizeY(ev.clientY);
 
-        const coordinates: Vector2D[] = this.getPieceCoordinates(pieces);
-        const x: number =
-            ev.clientX - this.cDragLayer.getBoundingClientRect().x;
-        const y: number =
-            ev.clientY - this.cDragLayer.getBoundingClientRect().y;
-
-        for (const coordinate of coordinates) {
-            this.definePath(coordinate);
-            if (this.ctxDragLayer?.isPointInPath(x, y)) {
-                this.cDragLayer.style.cursor = 'pointer';
-                break;
-            } else this.cDragLayer.style.cursor = 'default';
+            for (const coordinate of this.piecesTurnCoords) {
+                this.definePath(coordinate);
+                if (this.ctxDragLayer?.isPointInPath(x, y)) {
+                    this.cDragLayer.style.cursor = 'pointer';
+                    break;
+                } else this.cDragLayer.style.cursor = 'default';
+            }
         }
     }
 
     private handleMouseDown(ev: MouseEvent): void {
-        const x: number =
-            ev.clientX - this.cDragLayer.getBoundingClientRect().x;
-        const y: number =
-            ev.clientY - this.cDragLayer.getBoundingClientRect().y;
+        const x: number = this.normalizeX(ev.clientX);
+        const y: number = this.normalizeY(ev.clientY);
 
-        console.log(`${x} : ${y}`);
+        const { x: file, y: rank } = getRankAndFile({ x, y });
+
+        // -1 bcs we draw board on a 1 - 8 while keeping board interanlly as 0 - 7
+        const piece = this.boardRef.getPieceTypeAndColour({
+            file: file - 1,
+            rank: rank - 1,
+        });
+
+        if (!piece) {
+            console.log('No piece');
+            return;
+        }
+
+        console.log(
+            stringNamingBoardEnumMap.get(piece.colour) +
+                ' : ' +
+                stringNamingBoardEnumMap.get(piece.piece)
+        );
+
+        this.currentlyDraggedImage = boardToImageMapper(
+            piece.colour,
+            piece.piece
+        );
+        const position = getScreenPosition(rank, file);
+        this.draggedPosition = position;
+        this.ctxPiecesLayer?.clearRect(
+            position.x,
+            position.y,
+            cf.SQURESIZE,
+            cf.SQURESIZE
+        );
+        this.isDragging = true;
+        // Just so it draws instatly, without it it would not display piece till a mouse moves
+        this.handleMouseMove(ev);
+    }
+
+    private handleMouseUp(ev: MouseEvent): void {
+        this.cleanUpDrag();
+    }
+
+    private handleMouseOut(ev: MouseEvent): void {
+        this.cleanUpDrag();
+    }
+
+    private cleanUpDrag() {
+        if (!this.currentlyDraggedImage || !this.draggedPosition)
+            throw new Error('Clean up error');
+
+        this.ctxPiecesLayer?.drawImage(
+            this.currentlyDraggedImage,
+            this.draggedPosition.x,
+            this.draggedPosition.y,
+            cf.SQURESIZE,
+            cf.SQURESIZE
+        );
+        this.ctxDragLayer?.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
+        this.currentlyDraggedImage = null;
+        this.isDragging = false;
     }
 }
