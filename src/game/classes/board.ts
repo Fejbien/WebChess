@@ -25,11 +25,14 @@ export const pieceMapper: Map<string, PieceEnum> = new Map([
 
 export class Board {
     pieceBoardArr: bigint[];
+    move: ColourEnum;
 
     constructor(
         fen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     ) {
         this.pieceBoardArr = new Array(RANKCOUNT).fill(0n);
+        this.move = ColourEnum.white;
+
         this.setUpPieces(fen);
     }
 
@@ -37,7 +40,11 @@ export class Board {
         const endPiecePart: number = fen.indexOf(' ');
         // the idea is to add deafult setting if not added but for now lets just ignore it and assume its always correct
         const ranks: string = fen.slice(0, endPiecePart);
+        const rest: string[] = fen.slice(endPiecePart).trim().split(/\s+/);
         const rankSplit: string[] = ranks.split('/');
+
+        if (rest[0] === 'w') this.move = ColourEnum.white;
+        else this.move = ColourEnum.black;
 
         for (let i = 0; i < RANKCOUNT; i++) {
             const rankIndex = 7 - i;
@@ -71,24 +78,31 @@ export class Board {
     private setPiece(
         rankIndex: number,
         fileIndex: number,
-        color: ColourEnum,
+        colour: ColourEnum,
         piece: PieceEnum | undefined,
         bit: Bit = 1
     ) {
         const index: number = 8 * rankIndex + fileIndex;
-        this.pieceBoardArr[color];
+        this.pieceBoardArr[colour];
         const mask = 1n << BigInt(index);
 
         if (!piece) throw Error('Undefined piece');
 
         if (bit === 1) {
             this.pieceBoardArr[piece] |= mask;
-            this.pieceBoardArr[color] |= mask;
+            this.pieceBoardArr[colour] |= mask;
         } else {
             this.pieceBoardArr[piece] &= ~mask;
-            this.pieceBoardArr[color] &= ~mask;
+            this.pieceBoardArr[colour] &= ~mask;
         }
     }
+
+    public getCurrentColourTrun = (): ColourEnum => this.move;
+
+    // All colours
+    public getAllWhite = (): bigint => this.pieceBoardArr[BoardEnum.nWhite];
+    public getAllBlack = (): bigint => this.pieceBoardArr[BoardEnum.nBlack];
+    public getAll = (colour: ColourEnum) => this.pieceBoardArr[colour];
 
     // Pawns
     public getWhitePawns = (): bigint =>
@@ -99,8 +113,8 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nPawn] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getPawns = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nPawn] & this.pieceBoardArr[color];
+    public getPawns = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nPawn] & this.pieceBoardArr[colour];
 
     // Knights
     public getWhiteKnights = (): bigint =>
@@ -111,8 +125,8 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nKnight] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getKnights = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nKnight] & this.pieceBoardArr[color];
+    public getKnights = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nKnight] & this.pieceBoardArr[colour];
 
     // Bishops
     public getWhiteBishops = (): bigint =>
@@ -123,8 +137,8 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nBishop] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getBishops = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nBishop] & this.pieceBoardArr[color];
+    public getBishops = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nBishop] & this.pieceBoardArr[colour];
 
     // Rooks
     public getWhiteRooks = (): bigint =>
@@ -135,8 +149,8 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nRook] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getRooks = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nRook] & this.pieceBoardArr[color];
+    public getRooks = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nRook] & this.pieceBoardArr[colour];
 
     // Queens
     public getWhiteQueens = (): bigint =>
@@ -147,8 +161,8 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nQueen] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getQueens = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nQueen] & this.pieceBoardArr[color];
+    public getQueens = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nQueen] & this.pieceBoardArr[colour];
 
     // Kings
     public getWhiteKings = (): bigint =>
@@ -159,6 +173,6 @@ export class Board {
         this.pieceBoardArr[BoardEnum.nKing] &
         this.pieceBoardArr[BoardEnum.nBlack];
 
-    public getKings = (color: ColourEnum): bigint =>
-        this.pieceBoardArr[BoardEnum.nKing] & this.pieceBoardArr[color];
+    public getKings = (colour: ColourEnum): bigint =>
+        this.pieceBoardArr[BoardEnum.nKing] & this.pieceBoardArr[colour];
 }
