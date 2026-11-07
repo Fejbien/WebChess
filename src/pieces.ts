@@ -75,7 +75,15 @@ export class PiecesScreenHandling {
         this.cDragLayer.onmousedown = this.handleMouseDown.bind(this);
         this.cDragLayer.onmouseup = this.handleMouseUp.bind(this);
         this.cDragLayer.onmouseout = this.handleMouseOut.bind(this);
+
+        window.addEventListener('resize', this.handleResize);
     }
+
+    private handleResize = () => {
+        const rect = this.cDragLayer.getBoundingClientRect();
+        this.layerBoundingX = rect.x;
+        this.layerBoundingY = rect.y;
+    };
 
     private normalizeX = (x: number): number => x - this.layerBoundingX;
     private normalizeY = (y: number): number => y - this.layerBoundingY;
