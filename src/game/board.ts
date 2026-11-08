@@ -118,6 +118,8 @@ export class Board {
                 'Make a move from piece is not existing, shouldnt happend'
             );
 
+        if (pieceAndColour.colour !== this.move) return false;
+
         this.setPiece(
             from.rank,
             from.file,

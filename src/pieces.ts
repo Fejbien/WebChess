@@ -197,12 +197,6 @@ export class PiecesScreenHandling {
             return;
         }
 
-        // console.log(
-        //     stringNamingBoardEnumMap.get(piece.colour) +
-        //         ' : ' +
-        //         stringNamingBoardEnumMap.get(piece.piece)
-        // );
-
         this.draggedPosition = { rank, file };
         this.currentlyDraggedImage = boardToImageMapper(
             piece.colour,
@@ -226,7 +220,6 @@ export class PiecesScreenHandling {
         const y: number = this.normalizeY(ev.clientY);
         const { x: file, y: rank } = getRankAndFile({ x, y });
 
-        // -1 bcs we draw board on a 1 - 8 while keeping board interanlly as 0 - 7
         if (!this.draggedPosition)
             throw new Error(
                 'Mouse up vaiable but dragged posotion is not assigned?'
@@ -275,6 +268,9 @@ export class PiecesScreenHandling {
     // Technically if there was no plan for player vs computer this wouldnt be required
     private moveCallback(): void {
         this.drawPieces();
-        console.log('set');
+        this.piecesTurn = this.boardRef.getAll(
+            this.boardRef.getCurrentColourTrun()
+        );
+        this.piecesTurnCoords = this.getPieceCoordinates(this.piecesTurn);
     }
 }
