@@ -5,6 +5,8 @@ import {
     getRankAndFile,
     getScreenPosition,
 } from './helpers/positionNormalizers';
+import type { ColourEnum, PieceEnum } from './types/boardEnums';
+import type { HighlightBoardType } from './types/highlight';
 import type { Vector2D, VectorRankFile } from './types/vector2d';
 
 export class PiecesScreenHandling {
@@ -16,6 +18,9 @@ export class PiecesScreenHandling {
     cDragLayer: HTMLCanvasElement;
     ctxDragLayer: CanvasRenderingContext2D | null;
 
+    cHighlightLayer: HTMLCanvasElement;
+    ctxHighlightLayer: CanvasRenderingContext2D | null;
+
     layerBoundingX: number;
     layerBoundingY: number;
 
@@ -24,10 +29,12 @@ export class PiecesScreenHandling {
 
     isDragging: boolean;
     currentlyDraggedImage: HTMLImageElement | null;
+    draggedPieceDetails: { colour: ColourEnum; piece: PieceEnum } | null;
     draggedPosition: VectorRankFile | null;
 
     constructor(board: Board) {
         this.draggedPosition = null;
+        this.draggedPieceDetails = null;
         this.isDragging = false;
         this.currentlyDraggedImage = null;
 
@@ -58,6 +65,19 @@ export class PiecesScreenHandling {
         this.cDragLayer.height = cf.BOARDSIZE;
 
         if (this.ctxDragLayer === null)
+            throw new Error('Drag context layer is null');
+
+        // Highlight layer
+        this.cHighlightLayer = document.getElementById(
+            'board-highlight-layer'
+        ) as HTMLCanvasElement;
+        if (!this.cHighlightLayer) throw new Error('Drag layer not found');
+
+        this.ctxHighlightLayer = this.cHighlightLayer.getContext('2d');
+        this.cHighlightLayer.width = cf.BOARDSIZE;
+        this.cHighlightLayer.height = cf.BOARDSIZE;
+
+        if (this.ctxHighlightLayer === null)
             throw new Error('Drag context layer is null');
 
         // Other
@@ -128,10 +148,7 @@ export class PiecesScreenHandling {
         for (const [func, image] of map) {
             const coordinates = this.getPieceCoordinates(func());
             for (const { x: fileIndex, y: rankIndex } of coordinates) {
-                const { x, y } = getScreenPosition(
-                    rankIndex + 1,
-                    fileIndex + 1
-                );
+                const { x, y } = getScreenPosition(rankIndex, fileIndex);
                 this.ctxPiecesLayer.drawImage(
                     image,
                     x,
@@ -147,7 +164,7 @@ export class PiecesScreenHandling {
         const ctx = this.ctxDragLayer;
         if (!ctx) throw new Error('Define path ctx error');
         ctx.beginPath();
-        const { x, y } = getScreenPosition(coords.y + 1, coords.x + 1);
+        const { x, y } = getScreenPosition(coords.y, coords.x);
         ctx.moveTo(x, y);
         ctx.lineTo(x + cf.SQURESIZE, y);
         ctx.lineTo(x + cf.SQURESIZE, y + cf.SQURESIZE);
@@ -182,6 +199,7 @@ export class PiecesScreenHandling {
         }
     }
 
+    // add possible hightlight on like click not only for drag todo
     private handleMouseDown(ev: MouseEvent): void {
         const x: number = this.normalizeX(ev.clientX);
         const y: number = this.normalizeY(ev.clientY);
@@ -191,18 +209,17 @@ export class PiecesScreenHandling {
             file,
             rank,
         });
+        this.draggedPieceDetails = piece;
 
-        if (!piece) {
-            console.log('No piece');
-            return;
-        }
+        if (!piece) return;
+        if (this.boardRef.move !== piece.colour) return;
 
         this.draggedPosition = { rank, file };
         this.currentlyDraggedImage = boardToImageMapper(
             piece.colour,
             piece.piece
         );
-        const position = getScreenPosition(rank + 1, file + 1);
+        const position = getScreenPosition(rank, file);
         this.ctxPiecesLayer?.clearRect(
             position.x,
             position.y,
@@ -210,6 +227,7 @@ export class PiecesScreenHandling {
             cf.SQURESIZE
         );
         this.isDragging = true;
+        this.highlightMoves();
         // Just so it draws instatly, without it it would not display piece till a mouse moves
         this.handleMouseMove(ev);
     }
@@ -238,7 +256,9 @@ export class PiecesScreenHandling {
         if (success) {
             this.ctxDragLayer?.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
             this.currentlyDraggedImage = null;
+            this.draggedPieceDetails = null;
             this.isDragging = false;
+            this.clearHighlight();
         } else this.cleanUpDrag();
     }
 
@@ -247,11 +267,17 @@ export class PiecesScreenHandling {
     }
 
     private cleanUpDrag() {
-        if (!this.currentlyDraggedImage || !this.draggedPosition) return;
+        this.clearHighlight();
+        if (
+            !this.currentlyDraggedImage ||
+            !this.draggedPosition ||
+            !this.draggedPieceDetails
+        )
+            return;
 
         const pos = getScreenPosition(
-            this.draggedPosition.rank + 1,
-            this.draggedPosition.file + 1
+            this.draggedPosition.rank,
+            this.draggedPosition.file
         );
         this.ctxPiecesLayer?.drawImage(
             this.currentlyDraggedImage,
@@ -262,11 +288,44 @@ export class PiecesScreenHandling {
         );
         this.ctxDragLayer?.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
         this.currentlyDraggedImage = null;
+        this.draggedPieceDetails = null;
         this.isDragging = false;
+    }
+
+    private highlightMoves() {
+        if (!this.draggedPosition || !this.draggedPieceDetails) return;
+        this.highlightPosition(this.draggedPosition, 'active');
+
+        this.highlightPosition({ rank: 0, file: 0 }, 'possibleMove');
+    }
+
+    private highlightPosition(vec: VectorRankFile, type: HighlightBoardType) {
+        const pos = getScreenPosition(vec);
+        if (!this.ctxHighlightLayer) return;
+        const ctx = this.ctxHighlightLayer;
+        switch (type) {
+            case 'possibleMove':
+                ctx.fillStyle = 'green';
+                break;
+            case 'take':
+                ctx.fillStyle = 'red';
+                break;
+            case 'active':
+                ctx.fillStyle = 'blue';
+                break;
+        }
+        ctx.fillRect(pos.x, pos.y, cf.SQURESIZE, cf.SQURESIZE);
+    }
+
+    private clearHighlight() {
+        if (!this.ctxHighlightLayer) return;
+        const ctx = this.ctxHighlightLayer;
+        ctx.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
     }
 
     // Technically if there was no plan for player vs computer this wouldnt be required
     private moveCallback(): void {
+        this.highlightMoves();
         this.drawPieces();
         this.piecesTurn = this.boardRef.getAll(
             this.boardRef.getCurrentColourTrun()
