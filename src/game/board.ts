@@ -1,12 +1,12 @@
-import { RANKCOUNT } from '../../conifg';
-import { isLowerCase, isNumber } from '../../helpers/isHelpers';
+import { RANKCOUNT } from '../conifg';
+import { isLowerCase, isNumber } from '../helpers/isHelpers';
 import {
     BoardEnum,
     ColourEnum,
     PieceEnum,
     type Bit,
-} from '../../types/boardEnums';
-import type { VectorRankFile } from '../../types/vector2d';
+} from '../types/boardEnums';
+import type { VectorRankFile } from '../types/vector2d';
 
 export const pieceMapper: Map<string, PieceEnum> = new Map([
     ['p', PieceEnum.pawn],
@@ -28,11 +28,16 @@ export class Board {
     pieceBoardArr: bigint[];
     move: ColourEnum;
 
+    moveCallback: () => void;
+
     constructor(
         fen: string = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     ) {
         this.pieceBoardArr = new Array(RANKCOUNT).fill(0n);
         this.move = ColourEnum.white;
+        this.moveCallback = (): void => {
+            console.warn('Move callback is not assigned');
+        };
 
         this.setUpPieces(fen);
     }
@@ -83,7 +88,6 @@ export class Board {
         piece: PieceEnum | undefined,
         bit: Bit = 1
     ) {
-        this.pieceBoardArr[colour];
         const mask = this.getMaskFromRankAndFile(rankIndex, fileIndex);
 
         if (!piece) throw Error('Undefined piece');
@@ -102,6 +106,53 @@ export class Board {
         this.getMask(rank * 8 + file);
 
     public getCurrentColourTrun = (): ColourEnum => this.move;
+
+    // Add chechking for iff the move is even possible later dont care for now
+    public makeAMove(from: VectorRankFile, to: VectorRankFile): boolean {
+        if (this.isPlaceTaken(to)) return false;
+        if (!this.isPlaceTaken(from)) return false;
+
+        const pieceAndColour = this.getPieceTypeAndColour(from);
+        if (!pieceAndColour)
+            throw new Error(
+                'Make a move from piece is not existing, shouldnt happend'
+            );
+
+        this.setPiece(
+            from.rank,
+            from.file,
+            pieceAndColour.colour,
+            pieceAndColour.piece,
+            0
+        );
+        this.setPiece(
+            to.rank,
+            to.file,
+            pieceAndColour.colour,
+            pieceAndColour.piece,
+            1
+        );
+
+        if (this.move === ColourEnum.white) this.move = ColourEnum.black;
+        else this.move = ColourEnum.white;
+
+        this.moveCallback();
+        return true;
+    }
+
+    public setMoveCallback(func: () => void) {
+        this.moveCallback = func;
+    }
+
+    public isPlaceTaken(coords: VectorRankFile): boolean {
+        const mask = this.getMaskFromRankAndFile(coords.rank, coords.file);
+        return (
+            ((this.pieceBoardArr[ColourEnum.white] |
+                this.pieceBoardArr[ColourEnum.black]) &
+                mask) !==
+            0n
+        );
+    }
 
     // All colours
     public getAllWhite = (): bigint => this.pieceBoardArr[BoardEnum.nWhite];

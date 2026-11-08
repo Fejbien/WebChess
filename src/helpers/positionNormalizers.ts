@@ -29,7 +29,7 @@ export function getRankAndFile(
         : cf.RANKCOUNT + 1 - screenCol;
 
     return {
-        x: fileIndex,
-        y: rankIndex,
+        x: fileIndex - 1,
+        y: rankIndex - 1,
     };
 }

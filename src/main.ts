@@ -1,6 +1,6 @@
 import { BOARDSIZE, initPiecesSvg } from './conifg';
 import { initBoard } from './board';
-import { Board } from './game/classes/board';
+import { Board } from './game/board';
 import { PiecesScreenHandling } from './pieces';
 
 function setUpDiv() {
@@ -12,7 +12,7 @@ async function main() {
     setUpDiv();
     await initPiecesSvg();
     initBoard();
-    
+
     const board = new Board(
         'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
     );

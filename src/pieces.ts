@@ -1,12 +1,11 @@
 import * as cf from './conifg';
-import type { Board } from './game/classes/board';
+import type { Board } from './game/board';
 import { boardToImageMapper } from './helpers/boardTypeToImage';
 import {
     getRankAndFile,
     getScreenPosition,
 } from './helpers/positionNormalizers';
-import { stringNamingBoardEnumMap } from './types/boardEnums';
-import type { Vector2D } from './types/vector2d';
+import type { Vector2D, VectorRankFile } from './types/vector2d';
 
 export class PiecesScreenHandling {
     boardRef: Board;
@@ -25,7 +24,7 @@ export class PiecesScreenHandling {
 
     isDragging: boolean;
     currentlyDraggedImage: HTMLImageElement | null;
-    draggedPosition: Vector2D | null;
+    draggedPosition: VectorRankFile | null;
 
     constructor(board: Board) {
         this.draggedPosition = null;
@@ -33,6 +32,7 @@ export class PiecesScreenHandling {
         this.currentlyDraggedImage = null;
 
         this.boardRef = board;
+        this.boardRef.setMoveCallback(this.moveCallback.bind(this));
 
         // Pieces layer
         this.cPiecesLayer = document.getElementById(
@@ -63,7 +63,7 @@ export class PiecesScreenHandling {
         // Other
         this.layerBoundingX = this.cDragLayer.getBoundingClientRect().x;
         this.layerBoundingY = this.cDragLayer.getBoundingClientRect().y;
-        this.drawPieces(this.ctxPiecesLayer, this.boardRef);
+        this.drawPieces();
         // Should add to change on move to other one or skip enitrlely by like flag ai_move
         // and like the coordinates as well, so this wont be realucalter everytime
         this.piecesTurn = this.boardRef.getAll(
@@ -98,35 +98,47 @@ export class PiecesScreenHandling {
             const fileIndex = squareIndex & 7;
             const rankIndex = squareIndex >> 3;
 
-            coords.push({ x: fileIndex + 1, y: rankIndex + 1 });
+            coords.push({ x: fileIndex, y: rankIndex });
             board &= board - 1n;
         }
 
         return coords;
     }
 
-    private drawPieces(ctx: CanvasRenderingContext2D, board: Board) {
+    private drawPieces() {
+        if (this.ctxPiecesLayer === null)
+            throw new Error('Pieces context layer is null');
+        this.ctxPiecesLayer.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
         const map = new Map<() => bigint, HTMLImageElement>([
-            [board.getWhitePawns, cf.WHITEPAWNIMAGE],
-            [board.getWhiteBishops, cf.WHITEBISHOPIMAGE],
-            [board.getWhiteKings, cf.WHITEKINGIMAGE],
-            [board.getWhiteKnights, cf.WHITEKNIGHTIMAGE],
-            [board.getWhiteQueens, cf.WHITEQUEENIMAGE],
-            [board.getWhiteRooks, cf.WHITEROOKIMAGE],
+            [this.boardRef.getWhitePawns, cf.WHITEPAWNIMAGE],
+            [this.boardRef.getWhiteBishops, cf.WHITEBISHOPIMAGE],
+            [this.boardRef.getWhiteKings, cf.WHITEKINGIMAGE],
+            [this.boardRef.getWhiteKnights, cf.WHITEKNIGHTIMAGE],
+            [this.boardRef.getWhiteQueens, cf.WHITEQUEENIMAGE],
+            [this.boardRef.getWhiteRooks, cf.WHITEROOKIMAGE],
 
-            [board.getBlackBishops, cf.BLACKBISHOPIMAGE],
-            [board.getBlackKings, cf.BLACKKINGIMAGE],
-            [board.getBlackKnights, cf.BLACKKNIGHTIMAGE],
-            [board.getBlackPawns, cf.BLACKPAWNIMAGE],
-            [board.getBlackQueens, cf.BLACKQUEENIMAGE],
-            [board.getBlackRooks, cf.BLACKROOKIMAGE],
+            [this.boardRef.getBlackBishops, cf.BLACKBISHOPIMAGE],
+            [this.boardRef.getBlackKings, cf.BLACKKINGIMAGE],
+            [this.boardRef.getBlackKnights, cf.BLACKKNIGHTIMAGE],
+            [this.boardRef.getBlackPawns, cf.BLACKPAWNIMAGE],
+            [this.boardRef.getBlackQueens, cf.BLACKQUEENIMAGE],
+            [this.boardRef.getBlackRooks, cf.BLACKROOKIMAGE],
         ]);
 
         for (const [func, image] of map) {
             const coordinates = this.getPieceCoordinates(func());
             for (const { x: fileIndex, y: rankIndex } of coordinates) {
-                const { x, y } = getScreenPosition(rankIndex, fileIndex);
-                ctx.drawImage(image, x, y, cf.SQURESIZE, cf.SQURESIZE);
+                const { x, y } = getScreenPosition(
+                    rankIndex + 1,
+                    fileIndex + 1
+                );
+                this.ctxPiecesLayer.drawImage(
+                    image,
+                    x,
+                    y,
+                    cf.SQURESIZE,
+                    cf.SQURESIZE
+                );
             }
         }
     }
@@ -135,7 +147,7 @@ export class PiecesScreenHandling {
         const ctx = this.ctxDragLayer;
         if (!ctx) throw new Error('Define path ctx error');
         ctx.beginPath();
-        const { x, y } = getScreenPosition(coords.y, coords.x);
+        const { x, y } = getScreenPosition(coords.y + 1, coords.x + 1);
         ctx.moveTo(x, y);
         ctx.lineTo(x + cf.SQURESIZE, y);
         ctx.lineTo(x + cf.SQURESIZE, y + cf.SQURESIZE);
@@ -173,13 +185,11 @@ export class PiecesScreenHandling {
     private handleMouseDown(ev: MouseEvent): void {
         const x: number = this.normalizeX(ev.clientX);
         const y: number = this.normalizeY(ev.clientY);
-
         const { x: file, y: rank } = getRankAndFile({ x, y });
 
-        // -1 bcs we draw board on a 1 - 8 while keeping board interanlly as 0 - 7
         const piece = this.boardRef.getPieceTypeAndColour({
-            file: file - 1,
-            rank: rank - 1,
+            file,
+            rank,
         });
 
         if (!piece) {
@@ -187,18 +197,18 @@ export class PiecesScreenHandling {
             return;
         }
 
-        console.log(
-            stringNamingBoardEnumMap.get(piece.colour) +
-                ' : ' +
-                stringNamingBoardEnumMap.get(piece.piece)
-        );
+        // console.log(
+        //     stringNamingBoardEnumMap.get(piece.colour) +
+        //         ' : ' +
+        //         stringNamingBoardEnumMap.get(piece.piece)
+        // );
 
+        this.draggedPosition = { rank, file };
         this.currentlyDraggedImage = boardToImageMapper(
             piece.colour,
             piece.piece
         );
-        const position = getScreenPosition(rank, file);
-        this.draggedPosition = position;
+        const position = getScreenPosition(rank + 1, file + 1);
         this.ctxPiecesLayer?.clearRect(
             position.x,
             position.y,
@@ -210,8 +220,33 @@ export class PiecesScreenHandling {
         this.handleMouseMove(ev);
     }
 
-    private handleMouseUp(): void {
-        this.cleanUpDrag();
+    private handleMouseUp(ev: MouseEvent): void {
+        // validate if on board square later
+        const x: number = this.normalizeX(ev.clientX);
+        const y: number = this.normalizeY(ev.clientY);
+        const { x: file, y: rank } = getRankAndFile({ x, y });
+
+        // -1 bcs we draw board on a 1 - 8 while keeping board interanlly as 0 - 7
+        if (!this.draggedPosition)
+            throw new Error(
+                'Mouse up vaiable but dragged posotion is not assigned?'
+            );
+        const success = this.boardRef.makeAMove(
+            {
+                file: this.draggedPosition.file,
+                rank: this.draggedPosition.rank,
+            },
+            {
+                file,
+                rank,
+            }
+        );
+
+        if (success) {
+            this.ctxDragLayer?.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
+            this.currentlyDraggedImage = null;
+            this.isDragging = false;
+        } else this.cleanUpDrag();
     }
 
     private handleMouseOut(): void {
@@ -219,18 +254,27 @@ export class PiecesScreenHandling {
     }
 
     private cleanUpDrag() {
-        if (!this.currentlyDraggedImage || !this.draggedPosition)
-            throw new Error('Clean up error');
+        if (!this.currentlyDraggedImage || !this.draggedPosition) return;
 
+        const pos = getScreenPosition(
+            this.draggedPosition.rank + 1,
+            this.draggedPosition.file + 1
+        );
         this.ctxPiecesLayer?.drawImage(
             this.currentlyDraggedImage,
-            this.draggedPosition.x,
-            this.draggedPosition.y,
+            pos.x,
+            pos.y,
             cf.SQURESIZE,
             cf.SQURESIZE
         );
         this.ctxDragLayer?.clearRect(0, 0, cf.BOARDSIZE, cf.BOARDSIZE);
         this.currentlyDraggedImage = null;
         this.isDragging = false;
+    }
+
+    // Technically if there was no plan for player vs computer this wouldnt be required
+    private moveCallback(): void {
+        this.drawPieces();
+        console.log('set');
     }
 }
