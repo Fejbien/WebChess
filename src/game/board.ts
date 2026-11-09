@@ -90,7 +90,7 @@ export class Board {
     ) {
         const mask = this.getMaskFromRankAndFile(rankIndex, fileIndex);
 
-        if (!piece) throw Error('Undefined piece');
+        if (piece === undefined) throw Error('Undefined piece');
 
         if (bit === 1) {
             this.pieceBoardArr[piece] |= mask;
@@ -109,8 +109,24 @@ export class Board {
 
     // Add chechking for iff the move is even possible later dont care for now
     public makeAMove(from: VectorRankFile, to: VectorRankFile): boolean {
-        if (this.isPlaceTaken(to)) return false;
         if (!this.isPlaceTaken(from)) return false;
+        if (this.isPlaceTaken(to)) {
+            if (this.getPieceColour(to) === this.move) return false;
+
+            const toPieceAndColour = this.getPieceTypeAndColour(to);
+            if (!toPieceAndColour)
+                throw new Error(
+                    'Make a move from piece is not existing, shouldnt happend'
+                );
+
+            this.setPiece(
+                to.rank,
+                to.file,
+                toPieceAndColour.colour,
+                toPieceAndColour.piece,
+                0
+            );
+        }
 
         const pieceAndColour = this.getPieceTypeAndColour(from);
         if (!pieceAndColour)
